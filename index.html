@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUKDIKU</title>
+    <style>
+        :root {
+            /* Aangepaste kleuren voor de donkerblauwe stijl */
+            --border-thick: 3px solid #001f3f; /* Donkerblauw raster */
+            --border-thin: 1px solid #003366;
+            --bg-selected: #bbdefb; /* Lichtblauwe selectie */
+            --bg-readonly: #e3f2fd; /* Zeer lichtblauw voor vaste cijfers */
+            --text-error: #e74c3c;
+            --text-input: #004080; /* Donkerblauw voor invoer */
+            --text-fixed: #001f3f; /* Diepblauw voor vaste cijfers */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Mooie blauwe gradiënt achtergrond */
+            background: linear-gradient(135deg, #091d47 0%, #031838 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+
+        h1 {
+            color: #ffffff;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Menu Screens */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .menu-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        button:active { transform: scale(0.98); }
+
+        .btn-easy { background-color: #2ecc71; }
+        .btn-easy:hover { background-color: #27ae60; }
+        .btn-medium { background-color: #f1c40f; color: #333; }
+        .btn-medium:hover { background-color: #f39c12; }
+        .btn-hard { background-color: #e67e22; }
+        .btn-hard:hover { background-color: #d35400; }
+        .btn-control { background-color: #001f3f; }
+        .btn-control:hover { background-color: #003366; }
+
+        /* Game Stats */
+        .status-container {
+            display: flex;
+            justify-content: space-between;
+            width: 450px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .strike-counter {
+            color: #ff7675;
+        }
+
+        /* Grid */
+        #sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            grid-template-rows: repeat(9, 50px);
+            border: var(--border-thick);
+            background-color: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            box-sizing: border-box;
+            border: var(--border-thin);
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 50px;
+            cursor: pointer;
+            user-select: none;
+            color: var(--text-input);
+        }
+
+        /* Dikke randen voor 3x3 blokken */
+        .cell:nth-child(3n) { border-right: var(--border-thick); }
+        .cell:nth-child(9n) { border-right: none; }
+
+        #sudoku-grid > div:nth-child(n+19):nth-child(-n+27),
+        #sudoku-grid > div:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: var(--border-thick);
+        }
+
+        /* Cell States */
+        .cell.readonly {
+            background-color: var(--bg-readonly);
+            color: var(--text-fixed);
+            cursor: not-allowed;
+        }
+
+        .cell.editable {
+            color: var(--text-input);
+        }
+
+        .cell:focus {
+            outline: none;
+            background-color: var(--bg-selected);
+        }
+
+        .cell.error {
+            color: var(--text-error) !important;
+            background-color: #fadbd8;
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            height: 30px;
+        }
+        .msg-win { color: #2ecc71; }
+        .msg-lose { color: #ff7675; }
+
+        .game-controls {
+            margin-top: 15px;
+        }
+
+        /* Fullscreen Overlay Style */
+        #fullscreen-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #fullscreen-overlay img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <img src="sukdiku.jpg" width="200" height="200">
+
+    <div id="menu-screen" class="screen active">
+        <h2>Select Difficulty</h2>
+        <p>Careful! If you make 10 mistakes, it's game over.</p>
+        <div class="menu-buttons">
+            <button class="btn-easy" onclick="startGame('easy')">Easy</button>
+            <button class="btn-medium" onclick="startGame('medium')">Medium</button>
+            <button class="btn-hard" onclick="startGame('hard')">Hard</button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="status-container">
+            <div>Difficulty: <span id="current-diff-label" style="text-transform: capitalize;"></span></div>
+            <div class="strike-counter">Strikes: <span id="strike-count">0</span>/10</div>
+        </div>
+
+        <div id="sudoku-grid"></div>
+        <div id="message"></div>
+
+        <div class="game-controls">
+            <button class="btn-control" onclick="showMenu()">Main Menu</button>
+        </div>
+    </div>
+
+    <div id="fullscreen-overlay" onclick="closeOverlay()">
+        <img id="win-image" src="" alt="Victory Reward">
+    </div>
+
+    <script>
+        const menuScreen = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gridElement = document.getElementById('sudoku-grid');
+        const messageElement = document.getElementById('message');
+        const strikeCountElement = document.getElementById('strike-count');
+        const diffLabelElement = document.getElementById('current-diff-label');
+        const overlayElement = document.getElementById('fullscreen-overlay');
+        const winImageElement = document.getElementById('win-image');
+
+        const solutionBase = [
+            [5, 3, 4, 6, 7, 8, 9, 1, 2],
+            [6, 7, 2, 1, 9, 5, 3, 4, 8],
+            [1, 9, 8, 3, 4, 2, 5, 6, 7],
+            [8, 5, 9, 7, 6, 1, 4, 2, 3],
+            [4, 2, 6, 8, 5, 3, 7, 9, 1],
+            [7, 1, 3, 9, 2, 4, 8, 5, 6],
+            [9, 6, 1, 5, 3, 7, 2, 8, 4],
+            [2, 8, 7, 4, 1, 9, 6, 3, 5],
+            [3, 4, 5, 2, 8, 6, 1, 7, 9]
+        ];
+
+        let currentSolution = [];
+        let currentPuzzle = [];
+        let mistakes = 0;
+        const maxMistakes = 10;
+        let gameActive = true;
+
+        const difficultySettings = {
+            easy: 0.60,
+            medium: 0.45,
+            hard: 0.30
+        };
+
+        function showMenu() {
+            gameScreen.classList.remove('active');
+            menuScreen.classList.add('active');
+        }
+
+        function startGame(difficulty) {
+            menuScreen.classList.remove('active');
+            gameScreen.classList.add('active');
+
+            diffLabelElement.innerText = difficulty;
+            mistakes = 0;
+            strikeCountElement.innerText = mistakes;
+            gameActive = true;
+
+            generatePuzzle(difficultySettings[difficulty]);
+            createGridDOM();
+        }
+
+        function generatePuzzle(revealProbability) {
+            currentSolution = JSON.parse(JSON.stringify(solutionBase));
+            const shuffleMap = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+            for(let r=0; r<9; r++) {
+                for(let c=0; c<9; c++) {
+                    currentSolution[r][c] = shuffleMap[currentSolution[r][c] - 1];
+                }
+            }
+
+            currentPuzzle = currentSolution.map(row =>
+                row.map(val => (Math.random() < revealProbability ? val : 0))
+            );
+        }
+
+        function createGridDOM() {
+            gridElement.innerHTML = '';
+            messageElement.innerText = '';
+            messageElement.className = '';
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cellVal = currentPuzzle[r][c];
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    if (cellVal !== 0) {
+                        cell.innerText = cellVal;
+                        cell.classList.add('readonly');
+                    } else {
+                        cell.classList.add('editable');
+                        cell.setAttribute('contenteditable', 'true');
+                        cell.addEventListener('keydown', handleInput);
+                    }
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function handleInput(e) {
+            if (!gameActive) {
+                e.preventDefault();
+                return;
+            }
+
+            const cell = e.target;
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+
+            if (e.key >= '1' && e.key <= '9') {
+                const valInt = parseInt(e.key);
+                if (currentPuzzle[r][c] === valInt) {
+                    e.preventDefault();
+                    return;
+                }
+
+                cell.innerText = e.key;
+                currentPuzzle[r][c] = valInt;
+                validateCell(cell, r, c);
+                e.preventDefault();
+            }
+            else if (e.key === 'Backspace' || e.key === 'Delete') {
+                cell.innerText = '';
+                currentPuzzle[r][c] = 0;
+                cell.classList.remove('error');
+                e.preventDefault();
+            } else {
+                e.preventDefault();
+            }
+        }
+
+        function validateCell(cell, r, c) {
+            if (currentPuzzle[r][c] !== currentSolution[r][c]) {
+                if (!cell.classList.contains('error')) {
+                    cell.classList.add('error');
+                    mistakes++;
+                    strikeCountElement.innerText = mistakes;
+                    if (mistakes >= maxMistakes) {
+                        endGame(false);
+                        return;
+                    }
+                }
+            } else {
+                cell.classList.remove('error');
+                checkWinCondition();
+            }
+        }
+
+        function checkWinCondition() {
+            const cells = document.querySelectorAll('.cell');
+            let isComplete = true;
+
+            cells.forEach(cell => {
+                if (cell.innerText === '' || cell.classList.contains('error')) {
+                    isComplete = false;
+                }
+            });
+
+            if (isComplete) {
+                endGame(true);
+            }
+        }
+
+        function endGame(isWin) {
+            gameActive = false;
+            document.querySelectorAll('.cell.editable').forEach(cell => {
+                cell.removeAttribute('contenteditable');
+            });
+
+            if (isWin) {
+                messageElement.innerText = "?? Congratulations! Perfect Puzzle Solved!";
+                messageElement.className = "msg-win";
+                showRandomWinImage();
+            } else {
+                messageElement.innerText = "?? Game Over! Too many mistakes.";
+                messageElement.className = "msg-lose";
+                revealSolution();
+            }
+        }
+
+        function revealSolution() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                if (cell.classList.contains('editable')) {
+                    cell.innerText = currentSolution[r][c];
+                    if (cell.classList.contains('error')) {
+                        cell.style.backgroundColor = "#fcd4d4";
+                    } else {
+                        cell.style.color = "#7f8c8d";
+                    }
+                }
+            });
+        }
+
+        function showRandomWinImage() {
+            const randomNum = Math.floor(Math.random() * 200) + 1;
+            const formattedNum = String(randomNum).padStart(2, '0');
+            const imageUrl = `https://md19811.github.io/Manillen/randomM/${formattedNum}.jpg`;
+            winImageElement.src = imageUrl;
+            overlayElement.style.display = 'flex';
+        }
+
+        function closeOverlay() {
+            overlayElement.style.display = 'none';
+            winImageElement.src = '';
+        }
+    </script>
+</body>
+</html>
